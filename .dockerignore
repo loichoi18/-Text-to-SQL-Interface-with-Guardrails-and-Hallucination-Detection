@@ -1,0 +1,14 @@
+.git
+.gitignore
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+evals/results/*.json
+evals/results/*.csv
+.env
+.env.*
+!.env.example
+README.md
+docs/
+.vscode/

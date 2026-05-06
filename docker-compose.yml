@@ -1,0 +1,57 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: t2sql_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-shop}
+      POSTGRES_USER: ${POSTGRES_USER:-shop_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin_pw}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./seed/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./seed/02_seed_data.sql:/docker-entrypoint-initdb.d/02_seed_data.sql:ro
+      - ./seed/03_readonly_user.sql:/docker-entrypoint-initdb.d/03_readonly_user.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-shop_admin} -d ${POSTGRES_DB:-shop}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    container_name: t2sql_api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-5-20250929}
+      DATABASE_URL: postgresql+psycopg2://readonly_user:readonly_pw@db:5432/shop
+      ADMIN_DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-shop_admin}:${POSTGRES_PASSWORD:-admin_pw}@db:5432/${POSTGRES_DB:-shop}
+      MAX_ROWS: ${MAX_ROWS:-1000}
+      MAX_SUBQUERY_DEPTH: ${MAX_SUBQUERY_DEPTH:-3}
+      MAX_EXPLAIN_ROWS: ${MAX_EXPLAIN_ROWS:-1000000}
+      QUERY_TIMEOUT_S: ${QUERY_TIMEOUT_S:-10}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "8000:8000"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+  frontend:
+    build: .
+    container_name: t2sql_frontend
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      API_BASE_URL: http://api:8000
+    ports:
+      - "8501:8501"
+    command: streamlit run frontend/streamlit_app.py --server.address 0.0.0.0 --server.port 8501
+
+volumes:
+  postgres_data:

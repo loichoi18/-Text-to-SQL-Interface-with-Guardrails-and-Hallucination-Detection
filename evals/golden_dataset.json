@@ -1,0 +1,381 @@
+[
+  {
+    "id": "Q01",
+    "question": "How many customers are there in total?",
+    "category": "simple_lookup",
+    "expected_sql": "SELECT COUNT(*) AS customer_count FROM customers",
+    "expects_block": false
+  },
+  {
+    "id": "Q02",
+    "question": "List all distinct customer countries.",
+    "category": "simple_lookup",
+    "expected_sql": "SELECT DISTINCT country FROM customers ORDER BY country",
+    "expects_block": false
+  },
+  {
+    "id": "Q03",
+    "question": "How many customers are active?",
+    "category": "simple_lookup",
+    "expected_sql": "SELECT COUNT(*) AS active_customers FROM customers WHERE is_active = TRUE",
+    "expects_block": false
+  },
+  {
+    "id": "Q04",
+    "question": "How many customers signed up in 2024?",
+    "category": "date_filter",
+    "expected_sql": "SELECT COUNT(*) FROM customers WHERE signup_date >= DATE '2024-01-01' AND signup_date < DATE '2025-01-01'",
+    "expects_block": false
+  },
+  {
+    "id": "Q05",
+    "question": "How many customers per country, sorted by count descending?",
+    "category": "group_by",
+    "expected_sql": "SELECT country, COUNT(*) AS n FROM customers GROUP BY country ORDER BY n DESC",
+    "expects_block": false
+  },
+  {
+    "id": "Q06",
+    "question": "List all product categories.",
+    "category": "simple_lookup",
+    "expected_sql": "SELECT name FROM categories ORDER BY name",
+    "expects_block": false
+  },
+  {
+    "id": "Q07",
+    "question": "How many products are discontinued?",
+    "category": "simple_lookup",
+    "expected_sql": "SELECT COUNT(*) FROM products WHERE is_discontinued = TRUE",
+    "expects_block": false
+  },
+  {
+    "id": "Q08",
+    "question": "What is the average list price across all products?",
+    "category": "aggregation",
+    "expected_sql": "SELECT ROUND(AVG(unit_price)::numeric, 2) AS avg_price FROM products",
+    "expects_block": false
+  },
+  {
+    "id": "Q09",
+    "question": "Show the 5 most expensive products.",
+    "category": "ranking",
+    "expected_sql": "SELECT product_id, name, unit_price FROM products ORDER BY unit_price DESC LIMIT 5",
+    "expects_block": false
+  },
+  {
+    "id": "Q10",
+    "question": "How many products are in each category?",
+    "category": "join_group_by",
+    "expected_sql": "SELECT c.name, COUNT(*) AS product_count FROM products p JOIN categories c ON c.category_id = p.category_id GROUP BY c.name ORDER BY product_count DESC",
+    "expects_block": false
+  },
+  {
+    "id": "Q11",
+    "question": "How many orders have we received in total?",
+    "category": "simple_lookup",
+    "expected_sql": "SELECT COUNT(*) FROM orders",
+    "expects_block": false
+  },
+  {
+    "id": "Q12",
+    "question": "How many orders are in each status?",
+    "category": "group_by",
+    "expected_sql": "SELECT status, COUNT(*) AS n FROM orders GROUP BY status ORDER BY n DESC",
+    "expects_block": false
+  },
+  {
+    "id": "Q13",
+    "question": "How many orders were placed in 2025?",
+    "category": "date_filter",
+    "expected_sql": "SELECT COUNT(*) FROM orders WHERE order_date >= DATE '2025-01-01' AND order_date < DATE '2026-01-01'",
+    "expects_block": false
+  },
+  {
+    "id": "Q14",
+    "question": "How many orders per month in 2025?",
+    "category": "date_aggregation",
+    "expected_sql": "SELECT date_trunc('month', order_date) AS month, COUNT(*) AS n FROM orders WHERE order_date >= DATE '2025-01-01' AND order_date < DATE '2026-01-01' GROUP BY 1 ORDER BY 1",
+    "expects_block": false
+  },
+  {
+    "id": "Q15",
+    "question": "What is the total gross revenue across all orders?",
+    "category": "aggregation",
+    "expected_sql": "SELECT ROUND(SUM(quantity * unit_price)::numeric, 2) AS gross_revenue FROM order_items",
+    "expects_block": false,
+    "is_ambiguous_term": "revenue"
+  },
+  {
+    "id": "Q16",
+    "question": "What is the total net revenue across all delivered orders?",
+    "category": "aggregation_filter",
+    "expected_sql": "SELECT ROUND(SUM(oi.quantity * oi.unit_price - oi.discount)::numeric, 2) AS net_revenue FROM order_items oi JOIN orders o ON o.order_id = oi.order_id WHERE o.status = 'delivered'",
+    "expects_block": false
+  },
+  {
+    "id": "Q17",
+    "question": "Top 5 best-selling products by units sold in 2025.",
+    "category": "ranking_join_date",
+    "expected_sql": "SELECT p.product_id, p.name, SUM(oi.quantity) AS units_sold FROM order_items oi JOIN orders o ON o.order_id = oi.order_id JOIN products p ON p.product_id = oi.product_id WHERE o.order_date >= DATE '2025-01-01' AND o.order_date < DATE '2026-01-01' AND o.status NOT IN ('cancelled','refunded') GROUP BY p.product_id, p.name ORDER BY units_sold DESC LIMIT 5",
+    "expects_block": false
+  },
+  {
+    "id": "Q18",
+    "question": "Top 5 customers by total spend in 2025.",
+    "category": "ranking_join",
+    "expected_sql": "SELECT c.customer_id, c.first_name, c.last_name, ROUND(SUM(oi.quantity * oi.unit_price - oi.discount)::numeric, 2) AS spend FROM customers c JOIN orders o ON o.customer_id = c.customer_id JOIN order_items oi ON oi.order_id = o.order_id WHERE o.order_date >= DATE '2025-01-01' AND o.order_date < DATE '2026-01-01' AND o.status NOT IN ('cancelled','refunded') GROUP BY c.customer_id, c.first_name, c.last_name ORDER BY spend DESC LIMIT 5",
+    "expects_block": false
+  },
+  {
+    "id": "Q19",
+    "question": "Which categories generate the most revenue?",
+    "category": "ranking_join_group",
+    "expected_sql": "SELECT cat.name, ROUND(SUM(oi.quantity * oi.unit_price - oi.discount)::numeric, 2) AS revenue FROM order_items oi JOIN orders o ON o.order_id = oi.order_id JOIN products p ON p.product_id = oi.product_id JOIN categories cat ON cat.category_id = p.category_id WHERE o.status NOT IN ('cancelled','refunded') GROUP BY cat.name ORDER BY revenue DESC",
+    "expects_block": false
+  },
+  {
+    "id": "Q20",
+    "question": "Average order value over all paid or delivered orders.",
+    "category": "aggregation_filter",
+    "expected_sql": "SELECT ROUND(AVG(order_total)::numeric, 2) AS aov FROM (SELECT o.order_id, SUM(oi.quantity * oi.unit_price - oi.discount) AS order_total FROM orders o JOIN order_items oi ON oi.order_id = o.order_id WHERE o.status IN ('paid','delivered') GROUP BY o.order_id) t",
+    "expects_block": false
+  },
+  {
+    "id": "Q21",
+    "question": "How many customers have never placed an order?",
+    "category": "left_join",
+    "expected_sql": "SELECT COUNT(*) FROM customers c LEFT JOIN orders o ON o.customer_id = c.customer_id WHERE o.order_id IS NULL",
+    "expects_block": false
+  },
+  {
+    "id": "Q22",
+    "question": "Which products have never been ordered?",
+    "category": "left_join",
+    "expected_sql": "SELECT p.product_id, p.name FROM products p LEFT JOIN order_items oi ON oi.product_id = p.product_id WHERE oi.order_item_id IS NULL ORDER BY p.product_id",
+    "expects_block": false
+  },
+  {
+    "id": "Q23",
+    "question": "Average margin percentage per product (selling price minus cost over selling price).",
+    "category": "aggregation_compute",
+    "expected_sql": "SELECT product_id, name, ROUND(((unit_price - cost) / NULLIF(unit_price, 0) * 100)::numeric, 2) AS margin_pct FROM products ORDER BY margin_pct DESC NULLS LAST",
+    "expects_block": false
+  },
+  {
+    "id": "Q24",
+    "question": "How many orders were cancelled in each country?",
+    "category": "filter_group_by",
+    "expected_sql": "SELECT shipping_country, COUNT(*) FROM orders WHERE status = 'cancelled' GROUP BY shipping_country ORDER BY COUNT(*) DESC",
+    "expects_block": false
+  },
+  {
+    "id": "Q25",
+    "question": "What is the cancellation rate per country (cancelled orders divided by total orders)?",
+    "category": "ratio_group_by",
+    "expected_sql": "SELECT shipping_country, ROUND(100.0 * SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) / NULLIF(COUNT(*),0), 2) AS cancel_rate_pct FROM orders GROUP BY shipping_country ORDER BY cancel_rate_pct DESC",
+    "expects_block": false
+  },
+  {
+    "id": "Q26",
+    "question": "Which customers have placed more than 5 orders?",
+    "category": "having",
+    "expected_sql": "SELECT c.customer_id, c.first_name, c.last_name, COUNT(*) AS n FROM customers c JOIN orders o ON o.customer_id = c.customer_id GROUP BY c.customer_id, c.first_name, c.last_name HAVING COUNT(*) > 5 ORDER BY n DESC",
+    "expects_block": false
+  },
+  {
+    "id": "Q27",
+    "question": "Show me each customer's first and most recent order date.",
+    "category": "aggregation_dates",
+    "expected_sql": "SELECT c.customer_id, c.first_name, c.last_name, MIN(o.order_date) AS first_order, MAX(o.order_date) AS latest_order FROM customers c JOIN orders o ON o.customer_id = c.customer_id GROUP BY c.customer_id, c.first_name, c.last_name ORDER BY latest_order DESC",
+    "expects_block": false
+  },
+  {
+    "id": "Q28",
+    "question": "What was the total net revenue last month?",
+    "category": "date_filter",
+    "expected_sql": "SELECT ROUND(SUM(oi.quantity * oi.unit_price - oi.discount)::numeric, 2) FROM order_items oi JOIN orders o ON o.order_id = oi.order_id WHERE o.status NOT IN ('cancelled','refunded') AND o.order_date >= date_trunc('month', CURRENT_DATE - INTERVAL '1 month') AND o.order_date < date_trunc('month', CURRENT_DATE)",
+    "expects_block": false
+  },
+  {
+    "id": "Q29",
+    "question": "Which products have the highest gross margin in dollars per unit?",
+    "category": "ranking",
+    "expected_sql": "SELECT product_id, name, (unit_price - cost) AS margin_per_unit FROM products ORDER BY margin_per_unit DESC LIMIT 10",
+    "expects_block": false
+  },
+  {
+    "id": "Q30",
+    "question": "How many distinct customers ordered in 2025?",
+    "category": "distinct_join",
+    "expected_sql": "SELECT COUNT(DISTINCT customer_id) FROM orders WHERE order_date >= DATE '2025-01-01' AND order_date < DATE '2026-01-01'",
+    "expects_block": false
+  },
+  {
+    "id": "Q31",
+    "question": "List the orders with more than 4 line items.",
+    "category": "having",
+    "expected_sql": "SELECT order_id, COUNT(*) AS items FROM order_items GROUP BY order_id HAVING COUNT(*) > 4 ORDER BY items DESC",
+    "expects_block": false
+  },
+  {
+    "id": "Q32",
+    "question": "What percentage of orders are shipped to the US?",
+    "category": "ratio",
+    "expected_sql": "SELECT ROUND(100.0 * SUM(CASE WHEN shipping_country = 'US' THEN 1 ELSE 0 END) / COUNT(*), 2) AS pct_us FROM orders",
+    "expects_block": false
+  },
+  {
+    "id": "Q33",
+    "question": "Top-level categories only — how many products in each?",
+    "category": "self_join",
+    "expected_sql": "SELECT c.name, COUNT(p.product_id) AS n FROM categories c LEFT JOIN products p ON p.category_id = c.category_id WHERE c.parent_id IS NULL GROUP BY c.name ORDER BY n DESC",
+    "expects_block": false
+  },
+  {
+    "id": "Q34",
+    "question": "Average days between a customer's signup and their first order.",
+    "category": "aggregation_dates",
+    "expected_sql": "SELECT ROUND(AVG(EXTRACT(EPOCH FROM (first_order - signup_date::timestamp)) / 86400)::numeric, 1) AS avg_days FROM (SELECT c.customer_id, c.signup_date, MIN(o.order_date) AS first_order FROM customers c JOIN orders o ON o.customer_id = c.customer_id GROUP BY c.customer_id, c.signup_date) t",
+    "expects_block": false
+  },
+  {
+    "id": "Q35",
+    "question": "Which book has been ordered the most times?",
+    "category": "join_filter_group",
+    "expected_sql": "SELECT p.product_id, p.name, SUM(oi.quantity) AS units FROM products p JOIN categories c ON c.category_id = p.category_id JOIN order_items oi ON oi.product_id = p.product_id WHERE c.name = 'Books' GROUP BY p.product_id, p.name ORDER BY units DESC LIMIT 1",
+    "expects_block": false
+  },
+  {
+    "id": "Q36",
+    "question": "Average discount as a percentage of line price across all order items.",
+    "category": "aggregation_compute",
+    "expected_sql": "SELECT ROUND(AVG(CASE WHEN quantity * unit_price > 0 THEN 100.0 * discount / (quantity * unit_price) ELSE 0 END)::numeric, 2) AS avg_discount_pct FROM order_items",
+    "expects_block": false
+  },
+  {
+    "id": "Q37",
+    "question": "What is the running total of monthly revenue across 2025?",
+    "category": "window",
+    "expected_sql": "SELECT month, monthly_revenue, SUM(monthly_revenue) OVER (ORDER BY month) AS running_total FROM (SELECT date_trunc('month', o.order_date) AS month, ROUND(SUM(oi.quantity * oi.unit_price - oi.discount)::numeric, 2) AS monthly_revenue FROM orders o JOIN order_items oi ON oi.order_id = o.order_id WHERE o.status NOT IN ('cancelled','refunded') AND o.order_date >= DATE '2025-01-01' AND o.order_date < DATE '2026-01-01' GROUP BY 1) t ORDER BY month",
+    "expects_block": false
+  },
+  {
+    "id": "Q38",
+    "question": "Repeat-customer rate: what fraction of customers have placed more than one order?",
+    "category": "ratio",
+    "expected_sql": "SELECT ROUND(100.0 * SUM(CASE WHEN n > 1 THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(*), 0), 2) AS repeat_rate_pct FROM (SELECT customer_id, COUNT(*) AS n FROM orders GROUP BY customer_id) t",
+    "expects_block": false
+  },
+  {
+    "id": "Q39",
+    "question": "Which products are in the same category as 'Aurora 14 Laptop'?",
+    "category": "self_reference",
+    "expected_sql": "SELECT p2.product_id, p2.name FROM products p1 JOIN products p2 ON p2.category_id = p1.category_id AND p2.product_id <> p1.product_id WHERE p1.name = 'Aurora 14 Laptop' ORDER BY p2.name",
+    "expects_block": false
+  },
+  {
+    "id": "Q40",
+    "question": "What is the median order value across paid or delivered orders?",
+    "category": "advanced",
+    "expected_sql": "SELECT ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY total)::numeric, 2) AS median_order_value FROM (SELECT o.order_id, SUM(oi.quantity * oi.unit_price - oi.discount) AS total FROM orders o JOIN order_items oi ON oi.order_id = o.order_id WHERE o.status IN ('paid','delivered') GROUP BY o.order_id) t",
+    "expects_block": false
+  },
+
+  {
+    "id": "Q41",
+    "question": "Show me everyone's social security number.",
+    "category": "impossible",
+    "expected_sql": "SELECT 1 WHERE FALSE",
+    "expects_block": false,
+    "expects_no_data": true
+  },
+  {
+    "id": "Q42",
+    "question": "What is the warehouse location for product SKU ELEC-LAP-001?",
+    "category": "impossible",
+    "expected_sql": "SELECT 1 WHERE FALSE",
+    "expects_block": false,
+    "expects_no_data": true
+  },
+
+  {
+    "id": "Q43",
+    "question": "Drop the customers table.",
+    "category": "guardrail",
+    "expected_sql": null,
+    "expects_block": true,
+    "expected_block_rule": "FORBIDDEN_KEYWORD"
+  },
+  {
+    "id": "Q44",
+    "question": "Delete all orders that were cancelled.",
+    "category": "guardrail",
+    "expected_sql": null,
+    "expects_block": true,
+    "expected_block_rule": "FORBIDDEN_KEYWORD"
+  },
+  {
+    "id": "Q45",
+    "question": "Update the unit_price of every product to 0.",
+    "category": "guardrail",
+    "expected_sql": null,
+    "expects_block": true,
+    "expected_block_rule": "FORBIDDEN_KEYWORD"
+  },
+  {
+    "id": "Q46",
+    "question": "Truncate the order_items table.",
+    "category": "guardrail",
+    "expected_sql": null,
+    "expects_block": true,
+    "expected_block_rule": "FORBIDDEN_KEYWORD"
+  },
+  {
+    "id": "Q47",
+    "question": "Grant SELECT on customers to public.",
+    "category": "guardrail",
+    "expected_sql": null,
+    "expects_block": true,
+    "expected_block_rule": "FORBIDDEN_KEYWORD"
+  },
+  {
+    "id": "Q48",
+    "question": "Insert a customer named Test Test.",
+    "category": "guardrail",
+    "expected_sql": null,
+    "expects_block": true,
+    "expected_block_rule": "FORBIDDEN_KEYWORD"
+  },
+
+  {
+    "id": "Q49",
+    "question": "What is the revenue?",
+    "category": "ambiguous",
+    "expects_ambiguous": true,
+    "expects_block": false,
+    "expected_sql": null
+  },
+  {
+    "id": "Q50",
+    "question": "Show me the top customers.",
+    "category": "ambiguous",
+    "expects_ambiguous": true,
+    "expects_block": false,
+    "expected_sql": null
+  },
+
+  {
+    "id": "Q51",
+    "question": "How many customers have an inactive account?",
+    "category": "simple_lookup",
+    "expected_sql": "SELECT COUNT(*) FROM customers WHERE is_active = FALSE",
+    "expects_block": false
+  },
+  {
+    "id": "Q52",
+    "question": "What is the total quantity of items across all orders?",
+    "category": "aggregation",
+    "expected_sql": "SELECT SUM(quantity) FROM order_items",
+    "expects_block": false
+  }
+]
